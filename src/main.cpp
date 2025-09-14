@@ -27,7 +27,7 @@ double readTemperature(const std::string &devicePath) {
 
 int main() {
     try {
-        std::string devicePath = "/sys/bus/w1/devices/28-00000abcdefg"; 
+        std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
         double tempC = readTemperature(devicePath);
         std::cout << "Temperature: " << tempC << " °C\n";
     } catch (const std::exception &e) {
