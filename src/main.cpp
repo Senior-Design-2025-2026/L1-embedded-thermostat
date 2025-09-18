@@ -2,8 +2,9 @@
 #include <iostream>
 #include <string>
 #include <httplib.h>
-#include <cstdlib>
-#include <ctime>
+#include <json.hpp>
+
+using json = nlohmann::json;
 
 double readTemperature(const std::string &devicePath) {
     std::ifstream file(devicePath + "/w1_slave");
@@ -29,31 +30,52 @@ double readTemperature(const std::string &devicePath) {
 }
 
 int main() {
-    srand(time(0));
-
     httplib::Client client("http://localhost:8050");
 
     while (true) {
-        int temperature1 = rand() % 41 + 10;
-        int temperature2 = rand() % 41 + 10;
+        double temperature1;
+        double temperature2;
+        bool temperature1Null = false;
+        bool temperature2Null = false;
 
         try {
             std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
-            double tempC = readTemperature(devicePath);
-            std::cout << "Temperature: " << tempC << " °C\n";
+            temperature1 = readTemperature(devicePath);
+            std::cout << "Temperature: " << temperature1 << " °C\n";
         } catch (const std::exception &e) {
-            std::cerr << "Error: " << e.what() << "\n";
+            temperature1Null = true;
+            // std::cerr << "Error: " << e.what() << "\n";
         }
 
-        std::string json_data = "{\"sensor1Temperature\": \"" + std::to_string(temperature1) + "\", \"sensor2Temperature\": \"" + std::to_string(temperature2) + "\"}";
+        temperature1 = 30.5;
+        temperature2 = 32.1;
 
-        auto res = client.Post("/temperatureData", json_data, "application/json");
+        json json_data;
+        if (temperature1Null) {
+            json_data["sensor1Temperature"] = nullptr;
+        } else {
+            json_data["sensor1Temperature"] = temperature1;
+        }
+
+        if (temperature2Null) {
+            json_data["sensor2Temperature"] = nullptr;
+        } else {
+            json_data["sensor2Temperature"] = temperature2;
+        }
+
+        auto res = client.Post("/temperatureData", json_data.dump(), "application/json");
 
         if (res) {
             std::cout << "Response Status: " << res->status << std::endl;
             std::cout << "Response Body: " << res->body << std::endl;
         } else {
             std::cout << "Error: " << res.error() << std::endl;
+        }
+
+        json data = json::parse(res->body);
+
+        for (auto &val : data) {
+            std::cout << val << std::endl;
         }
 
         sleep(1);
