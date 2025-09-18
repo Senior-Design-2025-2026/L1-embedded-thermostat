@@ -4,25 +4,28 @@
 #include <httplib.h>
 #include <json.hpp>
 #include <wiringPiI2C.h>
-#include <ArduiPi_OLED.h> // Include the new library
 
-// I2C address for the OLED
-#define I2C_ADDR 0x3c
+// Include the u8g2 library files
+#include "u8g2_lib/u8g2.h"
+
+// The display object
+U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0); // The U8G2 constructor
 
 // Function to initialize the OLED
-void init_oled(ArduiPi_OLED &oled) {
-    oled.begin();
-    oled.clearDisplay();
-    oled.display();
+void init_oled() {
+    u8g2.begin();
+    u8g2.setFont(u8g2_font_unifont_tf);
+    u8g2.clearDisplay();
+    u8g2.display();
 }
 
 // Function to display text on the OLED
-void display_on_oled(ArduiPi_OLED &oled, const std::string &text, int line) {
-    oled.setTextSize(1);
-    oled.setTextColor(WHITE);
-    oled.setCursor(0, line * 10);
-    oled.print(text.c_str());
-    oled.display();
+void display_on_oled(const std::string &text, int line) {
+    u8g2.firstPage();
+    do {
+        u8g2.setFont(u8g2_font_unifont_tf);
+        u8g2.drawStr(0, 10 + line * 10, text.c_str());
+    } while (u8g2.nextPage());
 }
 
 using json = nlohmann::json;
@@ -54,8 +57,7 @@ int main() {
     httplib::Client client("http://localhost:8050");
 
     // Initialize the OLED display
-    ArduiPi_OLED oled;
-    init_oled(oled);
+    init_oled();
 
     while (true) {
         double temperature1 = -999.0;
@@ -91,13 +93,15 @@ int main() {
         }
 
         // Clear the OLED and display new temperature values
-        oled.clearDisplay();
+        u8g2.clearBuffer();
         
         std::string temp1_str = "Temp 1: " + std::to_string(temperature1).substr(0, 5) + " C";
         std::string temp2_str = "Temp 2: " + std::to_string(temperature2).substr(0, 5) + " C";
 
-        display_on_oled(oled, temp1_str, 0); // Display on line 0
-        display_on_oled(oled, temp2_str, 1); // Display on line 1
+        u8g2.setFont(u8g2_font_unifont_tf);
+        u8g2.drawStr(0, 10, temp1_str.c_str());
+        u8g2.drawStr(0, 20, temp2_str.c_str());
+        u8g2.sendBuffer();
         
         sleep(1);
     }
