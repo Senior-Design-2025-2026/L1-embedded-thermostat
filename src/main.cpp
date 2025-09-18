@@ -3,27 +3,7 @@
 #include <string>
 #include <httplib.h>
 #include <json.hpp>
-#include <wiringPiI2C.h>
 
-// Include the C++ wrapper for the u8g2 library
-#include "u8g2/cppsrc/U8g2lib.h"
-
-// The display object
-U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE); // The U8G2 constructor
-
-// Function to initialize the OLED
-void init_oled() {
-    u8g2.begin();
-    u8g2.setFont(u8g2_font_unifont_tf);
-}
-
-// Function to display text on the OLED
-void display_on_oled(const std::string &text, int line) {
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_unifont_tf);
-    u8g2.drawStr(0, 10 + line * 10, text.c_str());
-    u8g2.sendBuffer();
-}
 
 using json = nlohmann::json;
 
@@ -47,38 +27,48 @@ double readTemperature(const std::string &devicePath) {
     }
 
     int tempMilliC = std::stoi(line2.substr(pos + 2));
-    return tempMilliC / 1000.0; // convert to °C
+    return tempMilliC / 1000.0;  // convert to °C
 }
 
 int main() {
     httplib::Client client("http://localhost:8050");
 
-    // Initialize the OLED display
-    init_oled();
-
     while (true) {
-        double temperature1 = -999.0;
-        double temperature2 = -999.0;
-        
+        double temperature1;
+        double temperature2;
+        bool temperature1Null = false;
+        bool temperature2Null = false;
+
         try {
-            std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80";
+            std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
             temperature1 = readTemperature(devicePath);
-            std::cout << "Temperature 1: " << temperature1 << " °C\n";
+            std::cout << "Temperature: " << temperature1 << " °C\n";
         } catch (const std::exception &e) {
-            std::cerr << "Error reading sensor 1: " << e.what() << "\n";
+            temperature1Null = false;
+            std::cerr << "Error: " << e.what() << "\n";
         }
 
         try {
-            std::string devicePath = "/sys/bus/w1/devices/28-000007292a49";
+            std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
             temperature2 = readTemperature(devicePath);
-            std::cout << "Temperature 2: " << temperature2 << " °C\n";
+            std::cout << "Temperature: " << temperature2 << " °C\n";
         } catch (const std::exception &e) {
-            std::cerr << "Error reading sensor 2: " << e.what() << "\n";
+            temperature2Null = false;
+            std::cerr << "Error: " << e.what() << "\n";
         }
 
         json json_data;
-        json_data["sensor1Temperature"] = temperature1;
-        json_data["sensor2Temperature"] = temperature2;
+        if (temperature1Null) {
+            json_data["sensor1Temperature"] = nullptr;
+        } else {
+            json_data["sensor1Temperature"] = temperature1;
+        }
+
+        if (temperature2Null) {
+            json_data["sensor2Temperature"] = nullptr;
+        } else {
+            json_data["sensor2Temperature"] = temperature2;
+        }
 
         auto res = client.Post("/temperatureData", json_data.dump(), "application/json");
 
@@ -89,17 +79,12 @@ int main() {
             std::cout << "Error: " << res.error() << std::endl;
         }
 
-        // Clear the OLED and display new temperature values
-        u8g2.clearBuffer();
-        
-        std::string temp1_str = "Temp 1: " + std::to_string(temperature1).substr(0, 5) + " C";
-        std::string temp2_str = "Temp 2: " + std::to_string(temperature2).substr(0, 5) + " C";
+        json data = json::parse(res->body);
 
-        u8g2.setFont(u8g2_font_unifont_tf);
-        u8g2.drawStr(0, 10, temp1_str.c_str());
-        u8g2.drawStr(0, 20, temp2_str.c_str());
-        u8g2.sendBuffer();
-        
+        for (auto &val : data) {
+            std::cout << val << std::endl;
+        }
+
         sleep(1);
     }
 }
