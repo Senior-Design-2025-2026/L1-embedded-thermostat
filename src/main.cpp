@@ -1,6 +1,9 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <httplib.h>
+#include <cstdlib>
+#include <ctime>
 
 double readTemperature(const std::string &devicePath) {
     std::ifstream file(devicePath + "/w1_slave");
@@ -26,11 +29,33 @@ double readTemperature(const std::string &devicePath) {
 }
 
 int main() {
-    try {
-        std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
-        double tempC = readTemperature(devicePath);
-        std::cout << "Temperature: " << tempC << " °C\n";
-    } catch (const std::exception &e) {
-        std::cerr << "Error: " << e.what() << "\n";
+    srand(time(0));
+
+    httplib::Client client("http://localhost:8050");
+
+    while (true) {
+        int temperature1 = rand() % 41 + 10;
+        int temperature2 = rand() % 41 + 10;
+
+        try {
+            std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
+            double tempC = readTemperature(devicePath);
+            std::cout << "Temperature: " << tempC << " °C\n";
+        } catch (const std::exception &e) {
+            std::cerr << "Error: " << e.what() << "\n";
+        }
+
+        std::string json_data = "{\"sensor1Temperature\": \"" + std::to_string(temperature1) + "\", \"sensor2Temperature\": \"" + std::to_string(temperature2) + "\"}";
+
+        auto res = client.Post("/temperatureData", json_data, "application/json");
+
+        if (res) {
+            std::cout << "Response Status: " << res->status << std::endl;
+            std::cout << "Response Body: " << res->body << std::endl;
+        } else {
+            std::cout << "Error: " << res.error() << std::endl;
+        }
+
+        sleep(1);
     }
 }
