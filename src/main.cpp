@@ -39,16 +39,22 @@ int main() {
         bool temperature2Null = false;
 
         try {
-            std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
+            std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
             temperature1 = readTemperature(devicePath);
             std::cout << "Temperature: " << temperature1 << " °C\n";
         } catch (const std::exception &e) {
-            temperature1Null = true;
-            // std::cerr << "Error: " << e.what() << "\n";
+            temperature1Null = false;
+            std::cerr << "Error: " << e.what() << "\n";
         }
 
-        temperature1 = 30.5;
-        temperature2 = 32.1;
+        try {
+            std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
+            temperature2 = readTemperature(devicePath);
+            std::cout << "Temperature: " << temperature2 << " °C\n";
+        } catch (const std::exception &e) {
+            temperature2Null = false;
+            std::cerr << "Error: " << e.what() << "\n";
+        }
 
         json json_data;
         if (temperature1Null) {
