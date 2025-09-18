@@ -5,27 +5,24 @@
 #include <json.hpp>
 #include <wiringPiI2C.h>
 
-// Include the u8g2 library files
-#include "u8g2_lib/u8g2.h"
+// Include the C++ wrapper for the u8g2 library
+#include "u8g2/cppsrc/U8g2lib.h"
 
 // The display object
-U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0); // The U8G2 constructor
+U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE); // The U8G2 constructor
 
 // Function to initialize the OLED
 void init_oled() {
     u8g2.begin();
     u8g2.setFont(u8g2_font_unifont_tf);
-    u8g2.clearDisplay();
-    u8g2.display();
 }
 
 // Function to display text on the OLED
 void display_on_oled(const std::string &text, int line) {
-    u8g2.firstPage();
-    do {
-        u8g2.setFont(u8g2_font_unifont_tf);
-        u8g2.drawStr(0, 10 + line * 10, text.c_str());
-    } while (u8g2.nextPage());
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_unifont_tf);
+    u8g2.drawStr(0, 10 + line * 10, text.c_str());
+    u8g2.sendBuffer();
 }
 
 using json = nlohmann::json;
