@@ -227,54 +227,43 @@ namespace ssd1306 {
         clear(0, 0, m_width, m_height);
       }
 
-      // Optimized drawChar with 2x scaling
-    void drawChar(uint8_t x, uint8_t y, char c) {
-      if (c < 32 || c > 127) c = '?';
-      const uint8_t* bitmap = font5x7[c - 32];
+     void drawChar(uint8_t x, uint8_t y, char c) {
+    if (c < 32 || c > 127) c = '?';
 
-      // SSD1306 pages are 8 pixels tall
-      // We'll create a temporary buffer for 2x2 pixel doubling
-      uint8_t buf[14] = {}; // 5*2 + 2 spacing columns = 12, rounded to 14 for safety
+    // Each of the 5 columns of the character
+    for (int i = 0; i < 5; i++) {
+        uint8_t col = font5x7[c - 32][i];
+        // Each bit in the column (8 vertical pixels)
+        for (int j = 0; j < 8; j++) {
+            bool pixel = col & (1 << j);
+            uint8_t px = pixel ? 0xFF : 0x00;
 
-      // Loop through each original column
-      for (int col = 0; col < 5; col++) {
-        uint8_t colBits = bitmap[col];
-
-        // Double each bit vertically into two rows
-        uint8_t dblCol[2] = {0, 0};
-        for (int row = 0; row < 7; row++) {
-            if (colBits & (1 << row)) {
-                dblCol[0] |= (1 << (row * 2));     // top row
-                dblCol[1] |= (1 << (row * 2 + 1)); // bottom row
-            }
+            // Write pixel vertically doubled
+            bufferWrite(px);
+            bufferWrite(px);
         }
-
-        // Write doubled column twice horizontally
-        buf[col * 2]     = dblCol[0];
-        buf[col * 2 + 1] = dblCol[0];
-        buf[col * 2 + 7] = dblCol[1]; // second page row
-        buf[col * 2 + 8] = dblCol[1];
+        // Repeat the column to double horizontally
+        for (int j = 0; j < 8; j++) {
+            bool pixel = col & (1 << j);
+            uint8_t px = pixel ? 0xFF : 0x00;
+            bufferWrite(px);
+            bufferWrite(px);
+        }
     }
 
-    // Draw top half
-    setBlock(x, y >> 3, 12);
-    for (int i = 0; i < 6; i++) bufferWrite(buf[i]);
-    bufferFlush();
-
-    // Draw bottom half
-    setBlock(x, (y >> 3) + 1, 12);
-    for (int i = 7; i < 13; i++) bufferWrite(buf[i]);
-    bufferFlush();
+    // 1-column space between characters, doubled
+    bufferWrite(0x00);
+    bufferWrite(0x00);
 }
 
-// Optimized drawString (just increment x)
 void drawString(uint8_t x, uint8_t y, const std::string& text) {
     for (char c : text) {
         drawChar(x, y, c);
-        x += 12; // doubled width (5*2 + 1*2 space)
-        if (x > (m_width - 12)) break; // stop if off screen
+        x += 12; // 5 pixels * 2 + 2 pixel space
+        if (x > (m_width - 12)) break;
     }
 }
+
 
   };
 
