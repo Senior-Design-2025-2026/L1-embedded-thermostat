@@ -227,23 +227,55 @@ namespace ssd1306 {
         clear(0, 0, m_width, m_height);
       }
 
-      void drawChar(uint8_t x, uint8_t y, char c) {
-        if (c < 32 || c > 127) c = '?';
-        setBlock(x, y >> 3, 6); // 5 pixels + 1 space
-        for (int i = 0; i < 5; i++) {
-            bufferWrite(font5x7[c - 32][i]);
+      // Optimized drawChar with 2x scaling
+    void drawChar(uint8_t x, uint8_t y, char c) {
+      if (c < 32 || c > 127) c = '?';
+      const uint8_t* bitmap = font5x7[c - 32];
+
+      // SSD1306 pages are 8 pixels tall
+      // We'll create a temporary buffer for 2x2 pixel doubling
+      uint8_t buf[14] = {}; // 5*2 + 2 spacing columns = 12, rounded to 14 for safety
+
+      // Loop through each original column
+      for (int col = 0; col < 5; col++) {
+        uint8_t colBits = bitmap[col];
+
+        // Double each bit vertically into two rows
+        uint8_t dblCol[2] = {0, 0};
+        for (int row = 0; row < 7; row++) {
+            if (colBits & (1 << row)) {
+                dblCol[0] |= (1 << (row * 2));     // top row
+                dblCol[1] |= (1 << (row * 2 + 1)); // bottom row
+            }
         }
-        bufferWrite(0x00); // space between characters
-        bufferFlush();
+
+        // Write doubled column twice horizontally
+        buf[col * 2]     = dblCol[0];
+        buf[col * 2 + 1] = dblCol[0];
+        buf[col * 2 + 7] = dblCol[1]; // second page row
+        buf[col * 2 + 8] = dblCol[1];
     }
 
-    void drawString(uint8_t x, uint8_t y, const std::string& text) {
-        for (char c : text) {
-            drawChar(x, y, c);
-            x += 6;
-            if (x > (m_width - 6)) break; // stop if off screen
-        }
+    // Draw top half
+    setBlock(x, y >> 3, 12);
+    for (int i = 0; i < 6; i++) bufferWrite(buf[i]);
+    bufferFlush();
+
+    // Draw bottom half
+    setBlock(x, (y >> 3) + 1, 12);
+    for (int i = 7; i < 13; i++) bufferWrite(buf[i]);
+    bufferFlush();
+}
+
+// Optimized drawString (just increment x)
+void drawString(uint8_t x, uint8_t y, const std::string& text) {
+    for (char c : text) {
+        drawChar(x, y, c);
+        x += 12; // doubled width (5*2 + 1*2 space)
+        if (x > (m_width - 12)) break; // stop if off screen
     }
+}
+
   };
 
   class Display128x32: public Display {
