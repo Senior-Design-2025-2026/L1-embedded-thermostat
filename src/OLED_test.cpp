@@ -10,16 +10,11 @@ int main() {
     screen.clear();
 
     // Draw first line: "Sensor 1: 23°C"
-    screen.drawString(0, 0, "Sensor 1: 23");
-    screen.drawChar(6*12, 0, ' '); // 12th character position
-    screen.drawChar(6*13, 0, 'C');
+    screen.drawStringDouble(0, 0, "Sensor 1: 23 C");
 
     // Draw second line: "Sensor 2: 25°C"
-    screen.drawString(0, 8, "Sensor 2: 25");
-    screen.drawChar(6*12, 8, ' '); // same x offset
-    screen.drawChar(6*13, 8, 'C');
+    screen.drawStringDouble(0, 16, "Sensor 2: 25 C");
 
-    // Keep it displayed for 5 seconds
     sleep(10);
 
     // Clear screen

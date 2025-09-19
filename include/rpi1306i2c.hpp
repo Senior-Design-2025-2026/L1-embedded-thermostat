@@ -227,39 +227,31 @@ namespace ssd1306 {
         clear(0, 0, m_width, m_height);
       }
 
-     void drawChar(uint8_t x, uint8_t y, char c) {
+void drawCharDouble(uint8_t x, uint8_t y, char c) {
     if (c < 32 || c > 127) c = '?';
-
-    // Each of the 5 columns of the character
-    for (int i = 0; i < 5; i++) {
-        uint8_t col = font5x7[c - 32][i];
-        // Each bit in the column (8 vertical pixels)
-        for (int j = 0; j < 8; j++) {
-            bool pixel = col & (1 << j);
-            uint8_t px = pixel ? 0xFF : 0x00;
-
-            // Write pixel vertically doubled
-            bufferWrite(px);
-            bufferWrite(px);
-        }
-        // Repeat the column to double horizontally
-        for (int j = 0; j < 8; j++) {
-            bool pixel = col & (1 << j);
-            uint8_t px = pixel ? 0xFF : 0x00;
-            bufferWrite(px);
-            bufferWrite(px);
+    for (int col = 0; col < 5; col++) {
+        uint8_t byte = font5x7[c - 32][col];
+        for (int row = 0; row < 7; row++) { // original 7-pixel height
+            bool pixelOn = byte & (1 << row);
+            uint8_t py = y + row * 2;
+            uint8_t px = x + col * 2;
+            // Draw 2x2 block
+            if (pixelOn) {
+                bufferWritePixel(px, py);
+                bufferWritePixel(px+1, py);
+                bufferWritePixel(px, py+1);
+                bufferWritePixel(px+1, py+1);
+            }
         }
     }
-
-    // 1-column space between characters, doubled
-    bufferWrite(0x00);
-    bufferWrite(0x00);
+    // add 2-pixel space between characters
 }
 
-void drawString(uint8_t x, uint8_t y, const std::string& text) {
+// Draw a string using doubled characters
+void drawStringDouble(uint8_t x, uint8_t y, const std::string& text) {
     for (char c : text) {
-        drawChar(x, y, c);
-        x += 12; // 5 pixels * 2 + 2 pixel space
+        drawCharDouble(x, y, c);
+        x += 12; // 5 pixels * 2 + 2 space
         if (x > (m_width - 12)) break;
     }
 }
