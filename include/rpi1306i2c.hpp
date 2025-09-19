@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
+#include "font5x7.hpp"
 
 #define HZ_ADDR_MODE        0x00
 #define VT_ADDR_MODE        0x01
@@ -225,6 +226,24 @@ namespace ssd1306 {
       void clear() {
         clear(0, 0, m_width, m_height);
       }
+
+      void drawChar(uint8_t x, uint8_t y, char c) {
+        if (c < 32 || c > 127) c = '?';
+        setBlock(x, y >> 3, 6); // 5 pixels + 1 space
+        for (int i = 0; i < 5; i++) {
+            bufferWrite(font5x7[c - 32][i]);
+        }
+        bufferWrite(0x00); // space between characters
+        bufferFlush();
+    }
+
+    void drawString(uint8_t x, uint8_t y, const std::string& text) {
+        for (char c : text) {
+            drawChar(x, y, c);
+            x += 6;
+            if (x > (m_width - 6)) break; // stop if off screen
+        }
+    }
   };
 
   class Display128x32: public Display {
