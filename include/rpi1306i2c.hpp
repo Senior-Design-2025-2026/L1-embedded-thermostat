@@ -227,35 +227,23 @@ namespace ssd1306 {
         clear(0, 0, m_width, m_height);
       }
 
-void drawCharDouble(uint8_t x, uint8_t y, char c) {
-    if (c < 32 || c > 127) c = '?';
-    for (int col = 0; col < 5; col++) {
-        uint8_t byte = font5x7[c - 32][col];
-        for (int row = 0; row < 7; row++) { // original 7-pixel height
-            bool pixelOn = byte & (1 << row);
-            uint8_t py = y + row * 2;
-            uint8_t px = x + col * 2;
-            // Draw 2x2 block
-            if (pixelOn) {
-                bufferWritePixel(px, py);
-                bufferWritePixel(px+1, py);
-                bufferWritePixel(px, py+1);
-                bufferWritePixel(px+1, py+1);
-            }
-        }
+void drawChar(uint8_t x, uint8_t y, char c) {
+    if (c < 32 || c > 127) c = '?';        // fallback for unsupported characters
+    setBlock(x, y >> 3, 6);                // 5 pixels wide + 1 pixel spacing
+    for (int i = 0; i < 5; i++) {
+        bufferWrite(font5x7[c - 32][i]);
     }
-    // add 2-pixel space between characters
+    bufferWrite(0x00);                      // 1 pixel space between characters
+    bufferFlush();
 }
 
-// Draw a string using doubled characters
-void drawStringDouble(uint8_t x, uint8_t y, const std::string& text) {
+void drawString(uint8_t x, uint8_t y, const std::string& text) {
     for (char c : text) {
-        drawCharDouble(x, y, c);
-        x += 12; // 5 pixels * 2 + 2 space
-        if (x > (m_width - 12)) break;
+        drawChar(x, y, c);
+        x += 6;                             // move to next character
+        if (x > (m_width - 6)) break;       // stop if text reaches end of line
     }
 }
-
 
   };
 

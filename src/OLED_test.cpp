@@ -13,11 +13,14 @@ int main() {
     screen.drawStringDouble(0, 0, "Sensor 1: 23 C");
 
     // Draw second line: "Sensor 2: 25°C"
-    screen.drawStringDouble(0, 16, "Sensor 2: 25 C");
+    screen.drawStringDouble(0, 8, "Sensor 2: 25 C");
+    
+    display.bufferFlush();
 
     sleep(10);
 
     // Clear screen
+
     screen.clear();
 
     return 0;
