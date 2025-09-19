@@ -15,8 +15,6 @@ int main() {
     // Draw second line: "Sensor 2: 25°C"
     screen.drawString(0, 8, "Sensor 2: 25 C");
 
-    display.bufferFlush();
-
     sleep(10);
 
     // Clear screen
