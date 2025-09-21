@@ -89,7 +89,6 @@ int main() {
 
         // Check if a second has passed since the last measurement
         if (currentTime - lastReadTime >= READ_INTERVAL) {
-            screen.clear(); // Clear the screen at the start of each loop
 
             // ---- Sensor 1 Logic ----
             std::string temp1Str;
@@ -100,6 +99,7 @@ int main() {
                     std::ostringstream ss1;
                     ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C";
                     temp1Str = ss1.str();
+                    std::cout<< temp1Str;
                 } catch (const std::exception &e) {
                     temp1Str = "Sensor 1: Unplugged";
                 }
@@ -117,6 +117,7 @@ int main() {
                     std::ostringstream ss2;
                     ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C";
                     temp2Str = ss2.str();
+                    std::cout<< temp2Str;
                 } catch (const std::exception &e) {
                     temp2Str = "Sensor 2: Unplugged";
                 }
