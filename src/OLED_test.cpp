@@ -94,7 +94,7 @@ int main() {
         // Check for state changes and update the display immediately.
         if (lastSensor1Enabled != sensor1Enabled) {
             if (!sensor1Enabled) {
-                screen.drawString(0, 0, "Sensor 1: OFF     ");
+                screen.drawString(0, 0, "Sensor 1: OFF      ");
             } else {
                 needsUpdate = true;
             }
@@ -103,7 +103,7 @@ int main() {
 
         if (lastSensor2Enabled != sensor2Enabled) {
             if (!sensor2Enabled) {
-                screen.drawString(0, 8, "Sensor 2: OFF     ");
+                screen.drawString(0, 8, "Sensor 2: OFF      ");
             } else {
                 needsUpdate = true;
             }
