@@ -81,8 +81,6 @@ int main() {
     ssd1306::Display128x32 screen(1, 0x3C);
 
     while (true) {
-        screen.clear(); // Clear the screen at the start of each loop
-
         std::string temp1Str;
         if (sensor1Enabled) {
             try {
