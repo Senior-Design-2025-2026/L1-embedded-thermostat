@@ -32,16 +32,20 @@ int main() {
 
     // Setup for BUTTON 1 (GPIO 27)
     pinMode(BUTTON_PIN1, INPUT);
-    pullUpDnControl(BUTTON_PIN1, PUD_DOWN);
-    if (wiringPiISR(BUTTON_PIN1, INT_EDGE_RISING, &buttonCallback1) < 0) {
+    // Corrected to PUD_UP to match your wiring
+    pullUpDnControl(BUTTON_PIN1, PUD_UP); 
+    // Corrected to INT_EDGE_FALLING to match your wiring
+    if (wiringPiISR(BUTTON_PIN1, INT_EDGE_FALLING, &buttonCallback1) < 0) {
         std::cerr << "Unable to set up ISR for BUTTON 1." << std::endl;
         return 1;
     }
 
     // Setup for BUTTON 2 (GPIO 22)
     pinMode(BUTTON_PIN2, INPUT);
-    pullUpDnControl(BUTTON_PIN2, PUD_DOWN);
-    if (wiringPiISR(BUTTON_PIN2, INT_EDGE_RISING, &buttonCallback2) < 0) {
+    // Corrected to PUD_UP to match your wiring
+    pullUpDnControl(BUTTON_PIN2, PUD_UP);
+    // Corrected to INT_EDGE_FALLING to match your wiring
+    if (wiringPiISR(BUTTON_PIN2, INT_EDGE_FALLING, &buttonCallback2) < 0) {
         std::cerr << "Unable to set up ISR for BUTTON 2." << std::endl;
         return 1;
     }
@@ -49,7 +53,7 @@ int main() {
     std::cout << "Listening for button presses on GPIOs " << BUTTON_PIN1 << " and " << BUTTON_PIN2 << "." << std::endl;
 
     while (true) {
-        delay(1000); 
+        delay(1000);
     }
 
     return 0;
