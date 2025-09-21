@@ -5,6 +5,8 @@
 #include <json.hpp>
 #include <unistd.h>
 #include "rpi1306i2c.hpp"
+#include <sstream>
+#include <iomanip>
 
 
 using json = nlohmann::json;
@@ -48,11 +50,13 @@ int main() {
         try {
             std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
             temperature1 = readTemperature(devicePath);
-            std::cout << "Temperature: " << temperature1 << " °C\n";
-            temp1Str = "Sensor 1: " + std::to_string(temperature1) + " C";
+            std::ostringstream ss1;
+            ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C";
+            temp1Str = ss1.str();
+            std::cout << temp1Str << "\n";
         } catch (const std::exception &e) {
             temperature1Null = true;
-            temp1Str = "Sensor 1: Disconnected";
+            temp1Str = "Sensor 1: Unplugged";
             std::cerr << "Error: " << e.what() << "\n";
         }
 
@@ -61,12 +65,13 @@ int main() {
         try {
             std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
             temperature2 = readTemperature(devicePath);
-            std::cout << "Temperature: " << temperature2 << " °C\n";
-            temp2Str = "Sensor 2: " + std::to_string(temperature2) + " C";
-            
+            std::ostringstream ss2;
+            ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C";
+            temp2Str = ss2.str();
+            std::cout << temp2Str << "\n";
         } catch (const std::exception &e) {
             temperature2Null = true;
-            temp2Str = "Sensor 2: Disconnected";
+            temp2Str = "Sensor 2: Unplugged";
             std::cerr << "Error: " << e.what() << "\n";
         }
 
