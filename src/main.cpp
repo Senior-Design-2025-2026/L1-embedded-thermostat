@@ -50,7 +50,7 @@ int main() {
             std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
             temperature1 = readTemperature(devicePath);
             std::ostringstream ss1;
-            ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C";
+            ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C   ";
             temp1Str = ss1.str();
             std::cout << temp1Str << "\n";
         } catch (const std::exception &e) {
@@ -65,7 +65,7 @@ int main() {
             std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
             temperature2 = readTemperature(devicePath);
             std::ostringstream ss2;
-            ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C";
+            ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C   ";
             temp2Str = ss2.str();
             std::cout << temp2Str << "\n";
         } catch (const std::exception &e) {
