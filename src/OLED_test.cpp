@@ -79,41 +79,57 @@ int main() {
     }
 
     ssd1306::Display128x32 screen(1, 0x3C);
+    
+    // Timer variables
+    unsigned int lastReadTime = 0;
+    const unsigned int READ_INTERVAL = 1000; // 1000 milliseconds = 1 second
 
     while (true) {
-        std::string temp1Str;
-        if (sensor1Enabled) {
-            try {
-                std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
-                double temperature1 = readTemperature(devicePath);
-                std::ostringstream ss1;
-                ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C";
-                temp1Str = ss1.str();
-            } catch (const std::exception &e) {
-                temp1Str = "Sensor 1: Unplugged";
-            }
-        } else {
-            temp1Str = "Sensor 1: OFF";
-        }
-        screen.drawString(0, 0, temp1Str);
+        unsigned int currentTime = millis();
 
-        std::string temp2Str;
-        if (sensor2Enabled) {
-            try {
-                std::string devicePath = "/sys/bus/w1/devices/28-000007292a49";
-                double temperature2 = readTemperature(devicePath);
-                std::ostringstream ss2;
-                ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C";
-                temp2Str = ss2.str();
-            } catch (const std::exception &e) {
-                temp2Str = "Sensor 2: Unplugged";
-            }
-        } else {
-            temp2Str = "Sensor 2: OFF";
-        }
-        screen.drawString(0, 8, temp2Str);
+        // Check if a second has passed since the last measurement
+        if (currentTime - lastReadTime >= READ_INTERVAL) {
+            screen.clear(); // Clear the screen at the start of each loop
 
-        delay(1000); // Delay for 1 second
+            // ---- Sensor 1 Logic ----
+            std::string temp1Str;
+            if (sensor1Enabled) {
+                try {
+                    std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80";
+                    double temperature1 = readTemperature(devicePath);
+                    std::ostringstream ss1;
+                    ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C";
+                    temp1Str = ss1.str();
+                } catch (const std::exception &e) {
+                    temp1Str = "Sensor 1: Unplugged";
+                }
+            } else {
+                temp1Str = "Sensor 1: OFF     ";
+            }
+            screen.drawString(0, 0, temp1Str);
+
+            // ---- Sensor 2 Logic ----
+            std::string temp2Str;
+            if (sensor2Enabled) {
+                try {
+                    std::string devicePath = "/sys/bus/w1/devices/28-000007292a49";
+                    double temperature2 = readTemperature(devicePath);
+                    std::ostringstream ss2;
+                    ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C";
+                    temp2Str = ss2.str();
+                } catch (const std::exception &e) {
+                    temp2Str = "Sensor 2: Unplugged";
+                }
+            } else {
+                temp2Str = "Sensor 2: OFF    ";
+            }
+            screen.drawString(0, 8, temp2Str);
+            
+            lastReadTime = currentTime; // Update the time of the last measurement
+        }
+        
+        // This short delay prevents the loop from consuming 100% of the CPU
+        delay(10); 
     }
 
     screen.clear();
