@@ -14,8 +14,12 @@ const unsigned int DEBOUNCE_DELAY = 100; // milliseconds
 volatile unsigned int lastPressTime1 = 0;
 volatile unsigned int lastPressTime2 = 0;
 
-volatile bool sensor1Enabled = false; // Changed from true to false
-volatile bool sensor2Enabled = false; // Changed from true to false
+volatile bool sensor1Enabled = false;
+volatile bool sensor2Enabled = false;
+
+// Variables to store the last known temperature
+volatile double lastTemp1 = 0.0;
+volatile double lastTemp2 = 0.0;
 
 // Callback function for button presses
 void buttonCallback(int buttonPin, volatile unsigned int& lastPressTime, volatile bool& sensorEnabled) {
@@ -84,19 +88,20 @@ int main() {
     bool lastSensor2Enabled = false;
 
     // Initial display of sensor status
-    screen.drawString(0, 0, "Sensor 1: OFF     ");
-    screen.drawString(0, 8, "Sensor 2: OFF     ");
+    screen.drawString(0, 0, "Sensor 1: OFF       ");
+    screen.drawString(0, 8, "Sensor 2: OFF       ");
 
     while (true) {
         unsigned int currentTime = millis();
-        bool needsUpdate = false;
 
         // Check for state changes and update the display immediately.
         if (lastSensor1Enabled != sensor1Enabled) {
             if (!sensor1Enabled) {
                 screen.drawString(0, 0, "Sensor 1: OFF      ");
             } else {
-                needsUpdate = true;
+                std::ostringstream ss1;
+                ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << lastTemp1 << " C     ";
+                screen.drawString(0, 0, ss1.str());
             }
             lastSensor1Enabled = sensor1Enabled;
         }
@@ -105,19 +110,23 @@ int main() {
             if (!sensor2Enabled) {
                 screen.drawString(0, 8, "Sensor 2: OFF      ");
             } else {
-                needsUpdate = true;
+                std::ostringstream ss2;
+                ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << lastTemp2 << " C     ";
+                screen.drawString(0, 8, ss2.str());
             }
             lastSensor2Enabled = sensor2Enabled;
         }
 
-        if (currentTime - lastReadTime >= READ_INTERVAL || needsUpdate) {
+        // Only update the display with new temperature data on a schedule.
+        if (currentTime - lastReadTime >= READ_INTERVAL) {
             if (sensor1Enabled) {
                 try {
                     std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80";
                     double temperature1 = readTemperature(devicePath);
                     std::ostringstream ss1;
-                    ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C    ";
+                    ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C     ";
                     screen.drawString(0, 0, ss1.str());
+                    lastTemp1 = temperature1; // Store the new temperature
                 } catch (const std::exception &e) {
                     screen.drawString(0, 0, "Sensor 1: Unplugged");
                 }
@@ -127,8 +136,9 @@ int main() {
                     std::string devicePath = "/sys/bus/w1/devices/28-000007292a49";
                     double temperature2 = readTemperature(devicePath);
                     std::ostringstream ss2;
-                    ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C    ";
+                    ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C     ";
                     screen.drawString(0, 8, ss2.str());
+                    lastTemp2 = temperature2; // Store the new temperature
                 } catch (const std::exception &e) {
                     screen.drawString(0, 8, "Sensor 2: Unplugged");
                 }
@@ -136,6 +146,5 @@ int main() {
             lastReadTime = currentTime;
         }
     }
-    screen.clear();
     return 0;
 }
