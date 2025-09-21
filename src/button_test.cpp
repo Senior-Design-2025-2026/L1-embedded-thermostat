@@ -1,37 +1,37 @@
 #include <iostream>
-#include <pigpio.h>
+#include <wiringPi.h>
 
-constexpr int BUTTON_PIN = 27; // Use one of your button pins for testing
+constexpr int BUTTON_PIN = 27;
 
-// Callback function to print a message when the button is pressed
-void buttonCallback(int gpio, int level, uint32_t tick) {
-    if (level == 1) { // Rising edge
-        std::cout << "Button pressed on GPIO " << gpio << std::endl;
-    }
+// This function will be called by WiringPi's interrupt handler
+void buttonCallback() {
+    std::cout << "Button pressed on GPIO " << BUTTON_PIN << std::endl;
 }
 
 int main() {
-    // Initialize pigpio
-    if (gpioInitialise() < 0) {
-        std::cerr << "pigpio initialization failed" << std::endl;
+    // Initialize WiringPi
+    if (wiringPiSetupGpio() == -1) {
+        std::cerr << "WiringPi initialization failed. Please check your installation." << std::endl;
         return 1;
     }
 
-    // Set the GPIO pin as an input with a pull-down resistor
-    gpioSetMode(BUTTON_PIN, PI_INPUT);
-    gpioSetPullUpDown(BUTTON_PIN, PI_PUD_DOWN);
+    // Set the button pin as an input with a pull-down resistor
+    pinMode(BUTTON_PIN, INPUT);
+    pullUpDnControl(BUTTON_PIN, PUD_DOWN);
 
-    // Set up the interrupt to call our function on a rising edge
-    gpioSetISRFunc(BUTTON_PIN, RISING_EDGE, 0, buttonCallback);
+    // Register the interrupt service routine (ISR)
+    // The ISR will trigger on a rising edge (when the button is pressed)
+    if (wiringPiISR(BUTTON_PIN, INT_EDGE_RISING, &buttonCallback) < 0) {
+        std::cerr << "Unable to set up ISR. Check your permissions." << std::endl;
+        return 1;
+    }
 
     std::cout << "Listening for button presses on GPIO " << BUTTON_PIN << ". Press Ctrl+C to exit." << std::endl;
 
-    // Keep the program running indefinitely
+    // A loop to keep the program running
     while (true) {
-        gpioDelay(1000000); // 1-second delay
+        delay(1000); // Wait for 1 second
     }
 
-    // Clean up
-    gpioTerminate();
     return 0;
 }
