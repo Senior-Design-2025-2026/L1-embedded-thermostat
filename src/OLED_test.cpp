@@ -84,53 +84,60 @@ int main() {
     unsigned int lastReadTime = 0;
     const unsigned int READ_INTERVAL = 1000; // 1000 milliseconds = 1 second
 
+    // Variables to track display state
+    bool lastSensor1Enabled = true;
+    bool lastSensor2Enabled = true;
+
     while (true) {
         unsigned int currentTime = millis();
 
         // Check if a second has passed since the last measurement
         if (currentTime - lastReadTime >= READ_INTERVAL) {
-
             // ---- Sensor 1 Logic ----
-            std::string temp1Str;
             if (sensor1Enabled) {
                 try {
                     std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80";
                     double temperature1 = readTemperature(devicePath);
                     std::ostringstream ss1;
                     ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C";
-                    temp1Str = ss1.str();
+                    screen.drawString(0, 0, ss1.str());
                 } catch (const std::exception &e) {
-                    temp1Str = "Sensor 1: Unplugged";
+                    screen.drawString(0, 0, "Sensor 1: Unplugged");
                 }
-            } else {
-                temp1Str = "Sensor 1: OFF     ";
             }
-            screen.drawString(0, 0, temp1Str);
-
+            
             // ---- Sensor 2 Logic ----
-            std::string temp2Str;
             if (sensor2Enabled) {
                 try {
                     std::string devicePath = "/sys/bus/w1/devices/28-000007292a49";
                     double temperature2 = readTemperature(devicePath);
                     std::ostringstream ss2;
                     ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C";
-                    temp2Str = ss2.str();
+                    screen.drawString(0, 8, ss2.str());
                 } catch (const std::exception &e) {
-                    temp2Str = "Sensor 2: Unplugged";
+                    screen.drawString(0, 8, "Sensor 2: Unplugged");
                 }
-            } else {
-                temp2Str = "Sensor 2: OFF    ";
             }
-            screen.drawString(0, 8, temp2Str);
-            
-            lastReadTime = currentTime; // Update the time of the last measurement
+            lastReadTime = currentTime;
+        }
+
+        // Check for state changes and update the display immediately
+        if (lastSensor1Enabled != sensor1Enabled) {
+            screen.clear(); // Clear only when a state change happens
+            if (!sensor1Enabled) {
+                screen.drawString(0, 0, "Sensor 1: OFF");
+            }
+            lastSensor1Enabled = sensor1Enabled;
         }
         
-        // This short delay prevents the loop from consuming 100% of the CPU
-        delay(10); 
+        if (lastSensor2Enabled != sensor2Enabled) {
+            screen.clear(); // Clear only when a state change happens
+            if (!sensor2Enabled) {
+                screen.drawString(0, 8, "Sensor 2: OFF");
+            }
+            lastSensor2Enabled = sensor2Enabled;
+        }
     }
-
     screen.clear();
     return 0;
 }
