@@ -9,7 +9,7 @@
 
 using json = nlohmann::json;
 
-double readTemperature(const std::string &devicePath) {
+double readTemperature(const std::string &devicePath, int sensorNumber) {
     std::ifstream file(devicePath + "/w1_slave");
     std::string line1, line2;
 
@@ -41,28 +41,36 @@ int main() {
         double temperature2;
         bool temperature1Null = false;
         bool temperature2Null = false;
+        std::string temp1Str;
+        std::string temp2Str;
+
         screen.clear();
         try {
             std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
             temperature1 = readTemperature(devicePath);
             std::cout << "Temperature: " << temperature1 << " °C\n";
-            std::string temp1Str = "Sensor 1: " + std::to_string(temperature1) + " C";
-            screen.drawString(0, 0, temp1Str);
+            temp1Str = "Sensor 1: " + std::to_string(temperature1) + " C";
         } catch (const std::exception &e) {
-            temperature1Null = false;
+            temperature1Null = true;
+            temp1Str = "Sensor 1: Disconnected";
             std::cerr << "Error: " << e.what() << "\n";
         }
+
+        screen.drawString(0, 0, temp1Str);
 
         try {
             std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
             temperature2 = readTemperature(devicePath);
             std::cout << "Temperature: " << temperature2 << " °C\n";
-            std::string temp2Str = "Sensor 1: " + std::to_string(temperature2) + " C";
-            screen.drawString(0, 8, temp2Str);
+            temp2Str = "Sensor 2: " + std::to_string(temperature2) + " C";
+            
         } catch (const std::exception &e) {
-            temperature2Null = false;
+            temperature2Null = true;
+            temp2Str = "Sensor 2: Disconnected";
             std::cerr << "Error: " << e.what() << "\n";
         }
+
+        screen.drawString(0, 8, temp2Str);
 
         json json_data;
         if (temperature1Null) {
