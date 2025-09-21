@@ -228,24 +228,32 @@ namespace ssd1306 {
       }
 
 void drawChar(uint8_t x, uint8_t y, char c) {
-    if (c < 32 || c > 127) c = '?';        // fallback for unsupported characters
-    setBlock(x, y >> 3, 6);                // 5 pixels wide + 1 pixel spacing
-    for (int i = 0; i < 5; i++) {
-        bufferWrite(font5x7[c - 32][i]);
-    }
-    bufferWrite(0x00);                      // 1 pixel space between characters
-    bufferFlush();
-}
+            if (c < 32 || c > 127) c = '?';
+            setBlock(x, y >> 3, 6);
+            for (int i = 0; i < 5; i++) {
+                bufferWrite(font5x7[c - 32][i]);
+            }
+            bufferWrite(0x00);
+            bufferFlush();
+        }
 
-void drawString(uint8_t x, uint8_t y, const std::string& text) {
-    for (char c : text) {
-        drawChar(x, y, c);
-        x += 6;                             // move to next character
-        if (x > (m_width - 6)) break;       // stop if text reaches end of line
-    }
-}
+        // Optimized drawString function
+        void drawString(uint8_t x, uint8_t y, const std::string& text) {
+            // Set the block once for the entire string
+            uint8_t string_width = text.length() * 6;
+            setBlock(x, y >> 3, string_width);
 
-  };
+            for (char c : text) {
+                if (c < 32 || c > 127) c = '?';
+                // Write character bitmap to the buffer
+                for (int i = 0; i < 5; i++) {
+                    bufferWrite(font5x7[c - 32][i]);
+                }
+                bufferWrite(0x00); // 1 pixel space
+            }
+            bufferFlush(); // Flush the entire buffer in one transaction
+        }
+    };
 
   class Display128x32: public Display {
     public:

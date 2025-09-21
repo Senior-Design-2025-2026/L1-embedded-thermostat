@@ -95,7 +95,7 @@ int main() {
         // We do this before the temperature reading loop to ensure instant feedback.
         if (lastSensor1Enabled != sensor1Enabled) {
             if (!sensor1Enabled) {
-                screen.drawString(0, 0, "Sensor 1: OFF     ");
+                screen.drawString(0, 0, "Sensor 1: OFF      ");
             } else {
                 needsUpdate = true; // Needs a temperature update
             }
@@ -104,7 +104,7 @@ int main() {
 
         if (lastSensor2Enabled != sensor2Enabled) {
             if (!sensor2Enabled) {
-                screen.drawString(0, 8, "Sensor 2: OFF     ");
+                screen.drawString(0, 8, "Sensor 2: OFF      ");
             } else {
                 needsUpdate = true; // Needs a temperature update
             }
@@ -118,7 +118,7 @@ int main() {
                     std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80";
                     double temperature1 = readTemperature(devicePath);
                     std::ostringstream ss1;
-                    ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C";
+                    ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C   ";
                     screen.drawString(0, 0, ss1.str());
                 } catch (const std::exception &e) {
                     screen.drawString(0, 0, "Sensor 1: Unplugged");
@@ -129,7 +129,7 @@ int main() {
                     std::string devicePath = "/sys/bus/w1/devices/28-000007292a49";
                     double temperature2 = readTemperature(devicePath);
                     std::ostringstream ss2;
-                    ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C";
+                    ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C   ";
                     screen.drawString(0, 8, ss2.str());
                 } catch (const std::exception &e) {
                     screen.drawString(0, 8, "Sensor 2: Unplugged");
