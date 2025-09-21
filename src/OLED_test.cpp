@@ -83,35 +83,36 @@ int main() {
     bool lastSensor1Enabled = true;
     bool lastSensor2Enabled = true;
 
-    // Initial display update
-    screen.clear();
+    // Initial display of sensor status
     screen.drawString(0, 0, "Sensor 1: ON");
     screen.drawString(0, 8, "Sensor 2: ON");
 
     while (true) {
         unsigned int currentTime = millis();
+        bool needsUpdate = false;
 
-        // Check for state changes and update the display immediately
+        // Check for a state change and update the display immediately.
+        // We do this before the temperature reading loop to ensure instant feedback.
         if (lastSensor1Enabled != sensor1Enabled) {
-            screen.clear();
             if (!sensor1Enabled) {
                 screen.drawString(0, 0, "Sensor 1: OFF");
-                // Don't draw the second sensor yet to prevent flicker
+            } else {
+                needsUpdate = true; // Needs a temperature update
             }
             lastSensor1Enabled = sensor1Enabled;
         }
 
         if (lastSensor2Enabled != sensor2Enabled) {
-            screen.clear();
             if (!sensor2Enabled) {
                 screen.drawString(0, 8, "Sensor 2: OFF");
-                // Don't draw the first sensor yet to prevent flicker
+            } else {
+                needsUpdate = true; // Needs a temperature update
             }
             lastSensor2Enabled = sensor2Enabled;
         }
 
-        // Only update the display with temperature data once per second
-        if (currentTime - lastReadTime >= READ_INTERVAL) {
+        // Only update the display with temperature data on a schedule or after a state change.
+        if (currentTime - lastReadTime >= READ_INTERVAL || needsUpdate) {
             if (sensor1Enabled) {
                 try {
                     std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80";
