@@ -136,6 +136,6 @@ int main() {
             lastReadTime = currentTime;
         }
     }
-    screen.clear()
+    screen.clear();
     return 0;
 }
