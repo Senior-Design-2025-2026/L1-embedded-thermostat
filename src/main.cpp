@@ -3,6 +3,8 @@
 #include <string>
 #include <httplib.h>
 #include <json.hpp>
+#include <unistd.h>
+#include "rpi1306i2c.hpp"
 
 
 using json = nlohmann::json;
@@ -32,17 +34,20 @@ double readTemperature(const std::string &devicePath) {
 
 int main() {
     httplib::Client client("http://localhost:8050");
+    ssd1306::Display128x32 screen(1, 0x3C);
 
     while (true) {
         double temperature1;
         double temperature2;
         bool temperature1Null = false;
         bool temperature2Null = false;
-
+        screen.clear();
         try {
             std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
             temperature1 = readTemperature(devicePath);
             std::cout << "Temperature: " << temperature1 << " °C\n";
+            std::string temp1Str = "Sensor 1: " + std::to_string(temperature1) + " C";
+            screen.drawString(0, 0, temp1Str);
         } catch (const std::exception &e) {
             temperature1Null = false;
             std::cerr << "Error: " << e.what() << "\n";
@@ -52,6 +57,8 @@ int main() {
             std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
             temperature2 = readTemperature(devicePath);
             std::cout << "Temperature: " << temperature2 << " °C\n";
+            std::string temp2Str = "Sensor 1: " + std::to_string(temperature2) + " C";
+            screen.drawString(0, 0, temp2Str);
         } catch (const std::exception &e) {
             temperature2Null = false;
             std::cerr << "Error: " << e.what() << "\n";
