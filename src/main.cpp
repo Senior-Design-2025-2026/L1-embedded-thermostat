@@ -58,7 +58,7 @@ int main() {
             temperature2 = readTemperature(devicePath);
             std::cout << "Temperature: " << temperature2 << " °C\n";
             std::string temp2Str = "Sensor 1: " + std::to_string(temperature2) + " C";
-            screen.drawString(0, 0, temp2Str);
+            screen.drawString(0, 8, temp2Str);
         } catch (const std::exception &e) {
             temperature2Null = false;
             std::cerr << "Error: " << e.what() << "\n";
