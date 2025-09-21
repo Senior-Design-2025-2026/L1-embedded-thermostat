@@ -55,7 +55,7 @@ void checkButton(gpiod_line* line, bool &sensorEnabled, const std::string &senso
     int ret = gpiod_line_event_wait(line, &timeout);
     if (ret > 0) {
         gpiod_line_event_read(line, &event);
-        if (event.event_type == GPIOD_LINE_EVENT_RISING || event.event_type == GPIOD_LINE_EVENT_FALLING) {
+        if (event.event_type == GPIOD_LINE_EVENT_RISING_EDGE || event.event_type == GPIOD_LINE_EVENT_FALLING_EDGE) {
             sensorEnabled = !sensorEnabled;
             std::cout << sensorName << " toggled " << (sensorEnabled ? "ON" : "OFF") << std::endl;
         }
