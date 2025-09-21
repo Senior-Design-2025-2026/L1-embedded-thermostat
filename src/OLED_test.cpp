@@ -5,6 +5,35 @@
 #include <sstream>
 #include <iomanip>
 #include "rpi1306i2c.hpp"
+#include <wiringPi.h>
+
+constexpr int BUTTON_SENSOR1 = 27;
+constexpr int BUTTON_SENSOR2 = 22;
+
+const unsigned int DEBOUNCE_DELAY = 100; // milliseconds
+volatile unsigned int lastPressTime1 = 0;
+volatile unsigned int lastPressTime2 = 0;
+
+volatile bool sensor1Enabled = true;
+volatile bool sensor2Enabled = true;
+
+// Callback function for button presses
+void buttonCallback(int buttonPin, volatile unsigned int& lastPressTime, volatile bool& sensorEnabled) {
+    unsigned int currentTime = millis();
+    if (currentTime - lastPressTime > DEBOUNCE_DELAY) {
+        sensorEnabled = !sensorEnabled;
+        std::cout << "Sensor " << (buttonPin == BUTTON_SENSOR1 ? "1" : "2") << " toggled to " << (sensorEnabled ? "ON" : "OFF") << std::endl;
+        lastPressTime = currentTime;
+    }
+}
+
+void buttonCallback1() {
+    buttonCallback(BUTTON_SENSOR1, lastPressTime1, sensor1Enabled);
+}
+
+void buttonCallback2() {
+    buttonCallback(BUTTON_SENSOR2, lastPressTime2, sensor2Enabled);
+}
 
 double readTemperature(const std::string &devicePath) {
     std::ifstream file(devicePath + "/w1_slave");
@@ -14,61 +43,81 @@ double readTemperature(const std::string &devicePath) {
         throw std::runtime_error("Failed to read sensor file");
     }
 
-    // Check CRC line
     if (line1.find("YES") == std::string::npos) {
         throw std::runtime_error("CRC check failed");
     }
 
-    // Extract "t=..."
     auto pos = line2.find("t=");
     if (pos == std::string::npos) {
         throw std::runtime_error("Temperature not found");
     }
 
     int tempMilliC = std::stoi(line2.substr(pos + 2));
-    return tempMilliC / 1000.0;  // convert to °C
+    return tempMilliC / 1000.0;
 }
 
 int main() {
+    // WiringPi initialization
+    if (wiringPiSetupGpio() == -1) {
+        std::cerr << "WiringPi initialization failed." << std::endl;
+        return 1;
+    }
+
+    // Set up buttons for falling edge interrupt with pull-up resistor
+    pinMode(BUTTON_SENSOR1, INPUT);
+    pullUpDnControl(BUTTON_SENSOR1, PUD_UP);
+    if (wiringPiISR(BUTTON_SENSOR1, INT_EDGE_FALLING, &buttonCallback1) < 0) {
+        std::cerr << "Unable to set up ISR for BUTTON 1." << std::endl;
+        return 1;
+    }
+
+    pinMode(BUTTON_SENSOR2, INPUT);
+    pullUpDnControl(BUTTON_SENSOR2, PUD_UP);
+    if (wiringPiISR(BUTTON_SENSOR2, INT_EDGE_FALLING, &buttonCallback2) < 0) {
+        std::cerr << "Unable to set up ISR for BUTTON 2." << std::endl;
+        return 1;
+    }
+
     ssd1306::Display128x32 screen(1, 0x3C);
 
     while (true) {
-        double temperature1;
-        double temperature2;
-        bool temperature1Null = false;
-        bool temperature2Null = false;
+        screen.clear(); // Clear the screen at the start of each loop
+
         std::string temp1Str;
-        std::string temp2Str;
-
-        try {
-            std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
-            temperature1 = readTemperature(devicePath);
-            std::ostringstream ss1;
-            ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C   ";
-            temp1Str = ss1.str();
-            std::cout << temp1Str << "\n";
-        } catch (const std::exception &e) {
-            temperature1Null = true;
-            temp1Str = "Sensor 1: Unplugged";
-            std::cerr << "Error: " << e.what() << "\n";
+        if (sensor1Enabled) {
+            try {
+                std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
+                double temperature1 = readTemperature(devicePath);
+                std::ostringstream ss1;
+                ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C";
+                temp1Str = ss1.str();
+            } catch (const std::exception &e) {
+                temp1Str = "Sensor 1: Unplugged";
+            }
+        } else {
+            temp1Str = "Sensor 1: OFF";
         }
-
         screen.drawString(0, 0, temp1Str);
 
-        try {
-            std::string devicePath = "/sys/bus/w1/devices/28-000007292a49"; 
-            temperature2 = readTemperature(devicePath);
-            std::ostringstream ss2;
-            ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C   ";
-            temp2Str = ss2.str();
-            std::cout << temp2Str << "\n";
-        } catch (const std::exception &e) {
-            temperature2Null = true;
-            temp2Str = "Sensor 2: Unplugged";
-            std::cerr << "Error: " << e.what() << "\n";
+        std::string temp2Str;
+        if (sensor2Enabled) {
+            try {
+                std::string devicePath = "/sys/bus/w1/devices/28-000007292a49";
+                double temperature2 = readTemperature(devicePath);
+                std::ostringstream ss2;
+                ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C";
+                temp2Str = ss2.str();
+            } catch (const std::exception &e) {
+                temp2Str = "Sensor 2: Unplugged";
+            }
+        } else {
+            temp2Str = "Sensor 2: OFF";
         }
-
         screen.drawString(0, 8, temp2Str);
+
+        delay(1000); // Delay for 1 second
     }
-    screen.clear()
+
+    screen.clear();
+    return 0;
 }
