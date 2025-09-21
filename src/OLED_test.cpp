@@ -95,7 +95,7 @@ int main() {
         // We do this before the temperature reading loop to ensure instant feedback.
         if (lastSensor1Enabled != sensor1Enabled) {
             if (!sensor1Enabled) {
-                screen.drawString(0, 0, "Sensor 1: OFF");
+                screen.drawString(0, 0, "Sensor 1: OFF     ");
             } else {
                 needsUpdate = true; // Needs a temperature update
             }
@@ -104,7 +104,7 @@ int main() {
 
         if (lastSensor2Enabled != sensor2Enabled) {
             if (!sensor2Enabled) {
-                screen.drawString(0, 8, "Sensor 2: OFF");
+                screen.drawString(0, 8, "Sensor 2: OFF     ");
             } else {
                 needsUpdate = true; // Needs a temperature update
             }
