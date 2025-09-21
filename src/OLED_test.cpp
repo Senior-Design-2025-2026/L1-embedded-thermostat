@@ -57,13 +57,11 @@ double readTemperature(const std::string &devicePath) {
 }
 
 int main() {
-    // WiringPi initialization
     if (wiringPiSetupGpio() == -1) {
         std::cerr << "WiringPi initialization failed." << std::endl;
         return 1;
     }
 
-    // Set up buttons for falling edge interrupt with pull-up resistor
     pinMode(BUTTON_SENSOR1, INPUT);
     pullUpDnControl(BUTTON_SENSOR1, PUD_UP);
     if (wiringPiISR(BUTTON_SENSOR1, INT_EDGE_FALLING, &buttonCallback1) < 0) {
@@ -80,20 +78,40 @@ int main() {
 
     ssd1306::Display128x32 screen(1, 0x3C);
     
-    // Timer variables
     unsigned int lastReadTime = 0;
-    const unsigned int READ_INTERVAL = 1000; // 1000 milliseconds = 1 second
-
-    // Variables to track display state
+    const unsigned int READ_INTERVAL = 1000; // 1 second
     bool lastSensor1Enabled = true;
     bool lastSensor2Enabled = true;
+
+    // Initial display update
+    screen.clear();
+    screen.drawString(0, 0, "Sensor 1: ON");
+    screen.drawString(0, 8, "Sensor 2: ON");
 
     while (true) {
         unsigned int currentTime = millis();
 
-        // Check if a second has passed since the last measurement
+        // Check for state changes and update the display immediately
+        if (lastSensor1Enabled != sensor1Enabled) {
+            screen.clear();
+            if (!sensor1Enabled) {
+                screen.drawString(0, 0, "Sensor 1: OFF");
+                // Don't draw the second sensor yet to prevent flicker
+            }
+            lastSensor1Enabled = sensor1Enabled;
+        }
+
+        if (lastSensor2Enabled != sensor2Enabled) {
+            screen.clear();
+            if (!sensor2Enabled) {
+                screen.drawString(0, 8, "Sensor 2: OFF");
+                // Don't draw the first sensor yet to prevent flicker
+            }
+            lastSensor2Enabled = sensor2Enabled;
+        }
+
+        // Only update the display with temperature data once per second
         if (currentTime - lastReadTime >= READ_INTERVAL) {
-            // ---- Sensor 1 Logic ----
             if (sensor1Enabled) {
                 try {
                     std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80";
@@ -105,8 +123,6 @@ int main() {
                     screen.drawString(0, 0, "Sensor 1: Unplugged");
                 }
             }
-            
-            // ---- Sensor 2 Logic ----
             if (sensor2Enabled) {
                 try {
                     std::string devicePath = "/sys/bus/w1/devices/28-000007292a49";
@@ -120,24 +136,6 @@ int main() {
             }
             lastReadTime = currentTime;
         }
-
-        // Check for state changes and update the display immediately
-        if (lastSensor1Enabled != sensor1Enabled) {
-            screen.clear(); // Clear only when a state change happens
-            if (!sensor1Enabled) {
-                screen.drawString(0, 0, "Sensor 1: OFF");
-            }
-            lastSensor1Enabled = sensor1Enabled;
-        }
-        
-        if (lastSensor2Enabled != sensor2Enabled) {
-            screen.clear(); // Clear only when a state change happens
-            if (!sensor2Enabled) {
-                screen.drawString(0, 8, "Sensor 2: OFF");
-            }
-            lastSensor2Enabled = sensor2Enabled;
-        }
     }
-    screen.clear();
     return 0;
 }
