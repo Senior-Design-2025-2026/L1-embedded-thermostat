@@ -40,7 +40,6 @@ int main() {
         std::string temp1Str;
         std::string temp2Str;
 
-        screen.clear();
         try {
             std::string devicePath = "/sys/bus/w1/devices/28-000010eb7a80"; 
             temperature1 = readTemperature(devicePath);
