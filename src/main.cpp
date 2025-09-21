@@ -9,7 +9,7 @@
 
 using json = nlohmann::json;
 
-double readTemperature(const std::string &devicePath, int sensorNumber) {
+double readTemperature(const std::string &devicePath) {
     std::ifstream file(devicePath + "/w1_slave");
     std::string line1, line2;
 
