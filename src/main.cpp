@@ -86,9 +86,6 @@ int main() {
         std::cerr << "Unable to set up ISR for BUTTON 2." << std::endl;
         return 1;
     }
-
-    ssd1306::Display128x32 screen(1, 0x3C);
-    
     // Perform initial readings to populate lastTemp variables
     try {
         lastTemp1 = readTemperature("/sys/bus/w1/devices/28-000010eb7a80");
