@@ -11,23 +11,18 @@
 
 using json = nlohmann::json;
 
-constexpr int BUTTON_SENSOR1 = 27;
-constexpr int BUTTON_SENSOR2 = 22;
+const int BUTTON_SENSOR1 = 27;
+const int BUTTON_SENSOR2 = 22;
+
+// Need volatile variables to support interrupts
+volatile bool sensor1Enabled = false;
+volatile bool sensor2Enabled = false;
 
 const unsigned int DEBOUNCE_DELAY = 100;
 volatile unsigned int lastPressTime1 = 0;
 volatile unsigned int lastPressTime2 = 0;
 
-volatile bool sensor1Enabled = false;
-volatile bool sensor2Enabled = false;
-volatile bool temperature1Null = false;
-volatile bool temperature2Null = false;
-
-std::string unit = "c";
-
-volatile double lastTemp1 = 0.0;
-volatile double lastTemp2 = 0.0;
-
+// Change the sensor variable
 void buttonCallback(int buttonPin, volatile unsigned int& lastPressTime, volatile bool& sensorEnabled) {
     unsigned int currentTime = millis();
     if (currentTime - lastPressTime > DEBOUNCE_DELAY) {
@@ -37,45 +32,56 @@ void buttonCallback(int buttonPin, volatile unsigned int& lastPressTime, volatil
     }
 }
 
-void buttonCallback1() {
+// ISR for button 1
+void button1Interrupt() {
     buttonCallback(BUTTON_SENSOR1, lastPressTime1, sensor1Enabled);
 }
 
-void buttonCallback2() {
+// ISR for button 2
+void button2Interrupt() {
     buttonCallback(BUTTON_SENSOR2, lastPressTime2, sensor2Enabled);
 }
 
-void changeUnits() {
-    if (unit == "c") {
-        unit = "f";
+// Simple helper to change the unit of measurement
+std::string changeUnits(std::string unit) {
+    if (unit == "C") {
+        return "F";
     } else {
-        unit = "c";
+        return "C";
     }
 }
 
+// Reads the temperature from the given device
 double readTemperature(const std::string &devicePath) {
     std::ifstream file(devicePath + "/w1_slave");
     std::string line1, line2;
 
+    // Error checking the read
     if (!std::getline(file, line1) || !std::getline(file, line2)) {
         throw std::runtime_error("Failed to read sensor file");
     }
 
+    // CRC check
     if (line1.find("YES") == std::string::npos) {
         throw std::runtime_error("CRC check failed");
     }
 
-    auto pos = line2.find("t=");
-    if (pos == std::string::npos) {
+    // Check that the temperature exists
+    size_t tEqualsPosition = line2.find("t=");
+    if (tEqualsPosition == std::string::npos) {
         throw std::runtime_error("Temperature not found");
     }
 
-    int tempMilliC = std::stoi(line2.substr(pos + 2));
-    return tempMilliC / 1000.0;  // convert to °C
+    int milliCelsius = std::stoi(line2.substr(tEqualsPosition + 2));
+    // Convert to degrees Celsius
+    return milliCelsius / 1000.0;  
 }
 
 int main() {
+    // Listen on local port 8050
     httplib::Client client("http://localhost:8050");
+
+    // Screen initialization
     ssd1306::Display128x32 screen(1, 0x3C);
     screen.clear();
 
@@ -84,30 +90,24 @@ int main() {
         return 1;
     }
 
+    // Set GPIO pin to input
     pinMode(BUTTON_SENSOR1, INPUT);
     pullUpDnControl(BUTTON_SENSOR1, PUD_UP);
-    if (wiringPiISR(BUTTON_SENSOR1, INT_EDGE_FALLING, &buttonCallback1) < 0) {
+
+    // Configure falling edge interrupt for pushbutton 1
+    if (wiringPiISR(BUTTON_SENSOR1, INT_EDGE_FALLING, &button1Interrupt) < 0) {
         std::cerr << "Unable to set up ISR for BUTTON 1." << std::endl;
         return 1;
     }
 
+    // Set GPIO pin to input
     pinMode(BUTTON_SENSOR2, INPUT);
     pullUpDnControl(BUTTON_SENSOR2, PUD_UP);
-    if (wiringPiISR(BUTTON_SENSOR2, INT_EDGE_FALLING, &buttonCallback2) < 0) {
+
+    // Configure falling edge interrupt for pushbutton 2
+    if (wiringPiISR(BUTTON_SENSOR2, INT_EDGE_FALLING, &button2Interrupt) < 0) {
         std::cerr << "Unable to set up ISR for BUTTON 2." << std::endl;
         return 1;
-    }
-    // Perform initial readings to populate lastTemp variables
-    try {
-        lastTemp1 = readTemperature("/sys/bus/w1/devices/28-000010eb7a80");
-    } catch (const std::exception &e) {
-        lastTemp1 = 0.0;
-    }
-    
-    try {
-        lastTemp2 = readTemperature("/sys/bus/w1/devices/28-000007292a49");
-    } catch (const std::exception &e) {
-        lastTemp2 = 0.0;
     }
 
     unsigned int lastReadTime = 0;
@@ -115,24 +115,30 @@ int main() {
     bool lastSensor1Enabled = false;
     bool lastSensor2Enabled = false;
 
+    // Keeping track of the units to display
+    std::string unit = "C";
+
     // Display "OFF" with added spaces to clear any leftover characters
+    // Sensors are assumed to start off
     screen.drawString(0, 0, "Sensor 1: OFF     ");
     screen.drawString(0, 8, "Sensor 2: OFF     ");
 
     while (true) {
-        double temperature1;
-        double temperature2;
-        std::string temp1Str;
-        std::string temp2Str;
+        double temperature1 = 0.0;
+        double temperature2 = 0.0;
+        bool temperature1Null;
+        bool temperature2Null;
 
+        // Get the current time (used to only read once per second)
         unsigned int currentTime = millis();
 
+        // In case this has been changed from the interrupt (tough to implement at the interrupt level)
         if (lastSensor1Enabled != sensor1Enabled) {
             if (!sensor1Enabled) {
                 screen.drawString(0, 0, "Sensor 1: OFF       ");
             } else {
                 std::ostringstream ss1;
-                ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << lastTemp1 << " C    ";
+                ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C    ";
                 screen.drawString(0, 0, ss1.str());
             }
             lastSensor1Enabled = sensor1Enabled;
@@ -143,59 +149,83 @@ int main() {
                 screen.drawString(0, 8, "Sensor 2: OFF        "); 
             } else {
                 std::ostringstream ss2;
-                ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << lastTemp2 << " C    ";
+                ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature1 << " C    ";
                 screen.drawString(0, 8, ss2.str());
             }
             lastSensor2Enabled = sensor2Enabled;
         }
 
+        // If one second has elapsed
         if (currentTime - lastReadTime >= READ_INTERVAL) {
+            // If the sensor is on, get a reading
             if (sensor1Enabled) {
                 try {
                     temperature1 = readTemperature("/sys/bus/w1/devices/28-000010eb7a80");
+
+                    // Set upper and lower bounds
+                    if (temperature1 > 50) {
+                        temperature1 = 50;
+                    } else if (temperature1 < 10) {
+                        temperature1 = 10;
+                    }
+                    // Need a different variable to handle the conversion, because celsius value must be preserved
                     double tempTemp1 = temperature1;
+                    // Stream for the screen
                     std::ostringstream ss1;
 
-                    if (unit == "f") {
+                    // Potential conversion to Fahrenheit
+                    if (unit == "F") {
                         tempTemp1 = tempTemp1 * 9 / 5.0 + 32;
                     }
 
-                    ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << tempTemp1 << " C    "; // Added spaces
+                    ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << tempTemp1 << " " << unit << "    ";
                     screen.drawString(0, 0, ss1.str());
-                    lastTemp1 = temperature1;
                     temperature1Null = false;
                 } catch (const std::exception &e) {
-                    screen.drawString(0, 0, "Sensor 1: Unplugged "); // Added spaces
+                    // If the sensor is supposed to be on, but no reading is found, the sensor has been unplugged
+                    screen.drawString(0, 0, "Sensor 1: Unplugged ");
                     temperature1Null = true;
                 }
             } else {
+                screen.drawString(0, 0, "Sensor 1: OFF       ");
                 temperature1Null = true;
             }
             if (sensor2Enabled) {
                 try {
                     temperature2 = readTemperature("/sys/bus/w1/devices/28-000007292a49");
+                    // Set upper and lower bounds
+                    if (temperature2 > 50) {
+                        temperature2 = 50;
+                    } else if (temperature2 < 10) {
+                        temperature2 = 10;
+                    }
+
                     double tempTemp2 = temperature2;
 
-                    if (unit == "f") {
+                    if (unit == "F") {
                         tempTemp2 = tempTemp2 * 9 / 5.0 + 32;
                     }
 
                     std::ostringstream ss2;
-                    ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << tempTemp2 << " C    "; // Added spaces
+                    ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << tempTemp2 << " " << unit << "    ";
                     screen.drawString(0, 8, ss2.str());
-                    lastTemp2 = temperature2;
                     temperature2Null = false;
                 } catch (const std::exception &e) {
-                    screen.drawString(0, 8, "Sensor 2: Unplugged "); // Added spaces
+                    screen.drawString(0, 8, "Sensor 2: Unplugged ");
                     temperature2Null = true;
                 }
             } else {
+                screen.drawString(0, 8, "Sensor 2: OFF       ");
                 temperature2Null = true;
             }
+
+            // Update lastReadTime
             lastReadTime = currentTime;
 
+            // Create JSON object to send to server
             json json_data;
             
+            // ALWAYS SEND TEMPERATURE IN CELSIUS- THE SERVER WILL HANDLE CONVERSIONS
             if (temperature1Null) {
                 json_data["sensor1Temperature"] = nullptr;
             } else {
@@ -219,8 +249,19 @@ int main() {
                 std::cout << "Response Status: " << res->status << std::endl;
                 std::cout << "Response Body: " << res->body << std::endl;
 
+                // Check for change in units
                 if (j[0].get<std::string>() != unit) {
-                    changeUnits();
+                    unit = changeUnits(unit);
+                }
+
+                // Check for change in sensor 1 status
+                if (j[1].get<bool>() != sensor1Enabled) {
+                    buttonCallback(BUTTON_SENSOR1, lastPressTime1, sensor1Enabled);
+                }
+
+                // Check for change in sensor 2 status
+                if (j[2].get<bool>() != sensor2Enabled) {
+                    buttonCallback(BUTTON_SENSOR2, lastPressTime2, sensor2Enabled);
                 }
             } else {
                 std::cout << "Error: " << res.error() << std::endl;
