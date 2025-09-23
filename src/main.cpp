@@ -23,6 +23,8 @@ volatile bool sensor2Enabled = false;
 volatile bool temperature1Null = false;
 volatile bool temperature2Null = false;
 
+std::string unit = "c";
+
 volatile double lastTemp1 = 0.0;
 volatile double lastTemp2 = 0.0;
 
@@ -41,6 +43,14 @@ void buttonCallback1() {
 
 void buttonCallback2() {
     buttonCallback(BUTTON_SENSOR2, lastPressTime2, sensor2Enabled);
+}
+
+void changeUnits() {
+    if (unit == "c") {
+        unit = "f";
+    } else {
+        unit = "c";
+    }
 }
 
 double readTemperature(const std::string &devicePath) {
@@ -67,6 +77,7 @@ double readTemperature(const std::string &devicePath) {
 int main() {
     httplib::Client client("http://localhost:8050");
     ssd1306::Display128x32 screen(1, 0x3C);
+    screen.clear();
 
     if (wiringPiSetupGpio() == -1) {
         std::cerr << "WiringPi initialization failed." << std::endl;
@@ -118,10 +129,10 @@ int main() {
 
         if (lastSensor1Enabled != sensor1Enabled) {
             if (!sensor1Enabled) {
-                screen.drawString(0, 0, "Sensor 1: OFF       "); // Added spaces
+                screen.drawString(0, 0, "Sensor 1: OFF       ");
             } else {
                 std::ostringstream ss1;
-                ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << lastTemp1 << " C    "; // Added spaces
+                ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << lastTemp1 << " C    ";
                 screen.drawString(0, 0, ss1.str());
             }
             lastSensor1Enabled = sensor1Enabled;
@@ -129,10 +140,10 @@ int main() {
 
         if (lastSensor2Enabled != sensor2Enabled) {
             if (!sensor2Enabled) {
-                screen.drawString(0, 8, "Sensor 2: OFF        "); // Added spaces
+                screen.drawString(0, 8, "Sensor 2: OFF        "); 
             } else {
                 std::ostringstream ss2;
-                ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << lastTemp2 << " C    "; // Added spaces
+                ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << lastTemp2 << " C    ";
                 screen.drawString(0, 8, ss2.str());
             }
             lastSensor2Enabled = sensor2Enabled;
@@ -141,9 +152,15 @@ int main() {
         if (currentTime - lastReadTime >= READ_INTERVAL) {
             if (sensor1Enabled) {
                 try {
-                    double temperature1 = readTemperature("/sys/bus/w1/devices/28-000010eb7a80");
+                    temperature1 = readTemperature("/sys/bus/w1/devices/28-000010eb7a80");
+                    double tempTemp1 = temperature1;
                     std::ostringstream ss1;
-                    ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << temperature1 << " C    "; // Added spaces
+
+                    if (unit == "f") {
+                        tempTemp1 = tempTemp1 * 9 / 5.0 + 32;
+                    }
+
+                    ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << tempTemp1 << " C    "; // Added spaces
                     screen.drawString(0, 0, ss1.str());
                     lastTemp1 = temperature1;
                     temperature1Null = false;
@@ -156,9 +173,15 @@ int main() {
             }
             if (sensor2Enabled) {
                 try {
-                    double temperature2 = readTemperature("/sys/bus/w1/devices/28-000007292a49");
+                    temperature2 = readTemperature("/sys/bus/w1/devices/28-000007292a49");
+                    double tempTemp2 = temperature2;
+
+                    if (unit == "f") {
+                        tempTemp2 = tempTemp2 * 9 / 5.0 + 32;
+                    }
+
                     std::ostringstream ss2;
-                    ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << temperature2 << " C    "; // Added spaces
+                    ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << tempTemp2 << " C    "; // Added spaces
                     screen.drawString(0, 8, ss2.str());
                     lastTemp2 = temperature2;
                     temperature2Null = false;
@@ -172,6 +195,7 @@ int main() {
             lastReadTime = currentTime;
 
             json json_data;
+            
             if (temperature1Null) {
                 json_data["sensor1Temperature"] = nullptr;
             } else {
@@ -187,16 +211,19 @@ int main() {
             auto res = client.Post("/temperatureData", json_data.dump(), "application/json");
 
             if (res) {
+                // Parse the JSON array
+                json j = json::parse(res->body);
+
+                // bool sensor1Enabled = j[1].get<bool>();
+                // bool sensor2Enabled = j[2].get<bool>();
                 std::cout << "Response Status: " << res->status << std::endl;
                 std::cout << "Response Body: " << res->body << std::endl;
+
+                if (j[0].get<std::string>() != unit) {
+                    changeUnits();
+                }
             } else {
                 std::cout << "Error: " << res.error() << std::endl;
-            }
-
-            json data = json::parse(res->body);
-
-            for (auto &val : data) {
-                std::cout << val << std::endl;
             }
         }
     }
