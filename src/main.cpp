@@ -13,10 +13,14 @@ using json = nlohmann::json;
 
 const int BUTTON_SENSOR1 = 27;
 const int BUTTON_SENSOR2 = 22;
+const int POWER_SWITCH = 23;
 
 // Need volatile variables to support interrupts
 volatile bool sensor1Enabled = false;
 volatile bool sensor2Enabled = false;
+
+bool systemActive = false;
+bool lastSystemActive = false;
 
 const unsigned int DEBOUNCE_DELAY = 100;
 volatile unsigned int lastPressTime1 = 0;
@@ -24,6 +28,8 @@ volatile unsigned int lastPressTime2 = 0;
 
 // Change the sensor variable
 void buttonCallback(int buttonPin, volatile unsigned int& lastPressTime, volatile bool& sensorEnabled) {
+    // If the switch is off, ignore
+    if (!systemActive) return; 
     unsigned int currentTime = millis();
     if (currentTime - lastPressTime > DEBOUNCE_DELAY) {
         sensorEnabled = !sensorEnabled;
@@ -123,14 +129,65 @@ int main() {
     screen.drawString(0, 0, "Sensor 1: OFF     ");
     screen.drawString(0, 8, "Sensor 2: OFF     ");
 
+    // Set Switch GPIO pin to input - low is off
+    pinMode(POWER_SWITCH, INPUT);
+    pullUpDnControl(POWER_SWITCH, PUD_DOWN);
+
+    systemActive = (digitalRead(POWER_SWITCH) == HIGH);
+    lastSystemActive = systemActive;
+
+    // If switch begins in active state, display sensors in OFF position (Mode they are in when system starts up)
+    if (systemActive) {
+        screen.drawString(0, 0, "Sensor 1: OFF     ");
+        screen.drawString(0, 8, "Sensor 2: OFF     ");
+    }   
+    // If switch begins in off state, do not display on OLED
+    else {
+        screen.clear();
+    }
+
     while (true) {
+        // Get the current time (used to only read once per second)
+        unsigned int currentTime = millis();
+
+        // poll the switch every loop to check state
+        systemActive = (digitalRead(POWER_SWITCH) == HIGH);
+
+        if (!systemActive) {
+            // If just switched OFF, blank the screen once
+            if (lastSystemActive) {
+                screen.clear();
+                std::cout << "System OFF" << std::endl;
+            }
+
+            // Set previous state to off so next cycle system is active
+            lastSystemActive = false;
+            usleep(100000);
+
+            // If one second has elapsed
+            if (currentTime - lastReadTime >= READ_INTERVAL) {
+                // Create JSON object to send to server
+                json json_data;
+                
+                json_data["sensor1Temperature"] = nullptr;
+                json_data["sensor2Temperature"] = nullptr;
+
+                auto res = client.Post("/temperatureData", json_data.dump(), "application/json");
+
+                // Update lastReadTime
+                lastReadTime = currentTime;
+            }
+
+            continue;       // skip the rest of the loop
+        }
+
+        // Set last system active to true
+        lastSystemActive = true;
+
         double temperature1 = 0.0;
         double temperature2 = 0.0;
         bool temperature1Null;
         bool temperature2Null;
-
-        // Get the current time (used to only read once per second)
-        unsigned int currentTime = millis();
 
         // In case this has been changed from the interrupt (tough to implement at the interrupt level)
         if (lastSensor1Enabled != sensor1Enabled) {
@@ -163,10 +220,10 @@ int main() {
                     temperature1 = readTemperature("/sys/bus/w1/devices/28-000010eb7a80");
 
                     // Set upper and lower bounds
-                    if (temperature1 > 50) {
-                        temperature1 = 50;
-                    } else if (temperature1 < 10) {
-                        temperature1 = 10;
+                    if (temperature1 > 63) {
+                        temperature1 = 63;
+                    } else if (temperature1 < -10) {
+                        temperature1 = -10;
                     }
                     // Need a different variable to handle the conversion, because celsius value must be preserved
                     double tempTemp1 = temperature1;
@@ -194,10 +251,10 @@ int main() {
                 try {
                     temperature2 = readTemperature("/sys/bus/w1/devices/28-000007292a49");
                     // Set upper and lower bounds
-                    if (temperature2 > 50) {
-                        temperature2 = 50;
-                    } else if (temperature2 < 10) {
-                        temperature2 = 10;
+                    if (temperature2 > 63) {
+                        temperature2 = 63;
+                    } else if (temperature2 < -10) {
+                        temperature2 = -10;
                     }
 
                     double tempTemp2 = temperature2;
@@ -255,12 +312,12 @@ int main() {
                 }
 
                 // Check for change in sensor 1 status
-                if (j[1].get<bool>() != sensor1Enabled) {
+                if (j[1].get<bool>()) {
                     buttonCallback(BUTTON_SENSOR1, lastPressTime1, sensor1Enabled);
                 }
 
                 // Check for change in sensor 2 status
-                if (j[2].get<bool>() != sensor2Enabled) {
+                if (j[2].get<bool>()) {
                     buttonCallback(BUTTON_SENSOR2, lastPressTime2, sensor2Enabled);
                 }
             } else {
