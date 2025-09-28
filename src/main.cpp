@@ -18,6 +18,8 @@ const int POWER_SWITCH = 23;
 // Need volatile variables to support interrupts
 volatile bool sensor1Enabled = false;
 volatile bool sensor2Enabled = false;
+volatile bool sensor1Unplugged = false;
+volatile bool sensor2Unplugged = false;
 
 bool systemActive = false;
 bool lastSystemActive = false;
@@ -171,6 +173,10 @@ int main() {
                 
                 json_data["sensor1Temperature"] = nullptr;
                 json_data["sensor2Temperature"] = nullptr;
+                json_data["sensor1Enabled"] = false;
+                json_data["sensor2Enabled"] = false;
+                json_data["sensor1Unplugged"] = sensor1Unplugged;
+                json_data["sensor2Unplugged"] = sensor2Unplugged;
 
                 auto res = client.Post("/temperatureData", json_data.dump(), "application/json");
 
@@ -238,14 +244,17 @@ int main() {
                     ss1 << "Sensor 1: " << std::fixed << std::setprecision(2) << tempTemp1 << " " << unit << "    ";
                     screen.drawString(0, 0, ss1.str());
                     temperature1Null = false;
+                    sensor1Unplugged = false;
                 } catch (const std::exception &e) {
                     // If the sensor is supposed to be on, but no reading is found, the sensor has been unplugged
                     screen.drawString(0, 0, "Sensor 1: Unplugged ");
+                    sensor1Unplugged = true;
                     temperature1Null = true;
                 }
             } else {
                 screen.drawString(0, 0, "Sensor 1: OFF       ");
                 temperature1Null = true;
+                sensor1Unplugged = false;
             }
             if (sensor2Enabled) {
                 try {
@@ -267,13 +276,16 @@ int main() {
                     ss2 << "Sensor 2: " << std::fixed << std::setprecision(2) << tempTemp2 << " " << unit << "    ";
                     screen.drawString(0, 8, ss2.str());
                     temperature2Null = false;
+                    sensor2Unplugged = false;
                 } catch (const std::exception &e) {
                     screen.drawString(0, 8, "Sensor 2: Unplugged ");
+                    sensor2Unplugged = true;
                     temperature2Null = true;
                 }
             } else {
                 screen.drawString(0, 8, "Sensor 2: OFF       ");
                 temperature2Null = true;
+                sensor2Unplugged = false;
             }
 
             // Update lastReadTime
@@ -295,14 +307,17 @@ int main() {
                 json_data["sensor2Temperature"] = temperature2;
             }
 
+            json_data["sensor1Enabled"] = sensor1Enabled;
+            json_data["sensor2Enabled"] = sensor2Enabled;
+            json_data["sensor1Unplugged"] = sensor1Unplugged;
+            json_data["sensor2Unplugged"] = sensor2Unplugged;
+
             auto res = client.Post("/temperatureData", json_data.dump(), "application/json");
 
             if (res) {
                 // Parse the JSON array
                 json j = json::parse(res->body);
 
-                // bool sensor1Enabled = j[1].get<bool>();
-                // bool sensor2Enabled = j[2].get<bool>();
                 std::cout << "Response Status: " << res->status << std::endl;
                 std::cout << "Response Body: " << res->body << std::endl;
 
